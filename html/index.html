@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mike Agentic - Proxy Version</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js" integrity="sha512-EBLzUL8XLl+va/zAsmXwS7Z2B1F9HUHkZwyS/VKwh3S7T/U0nF4BaU29EP/ZSf6zgiIxYAnKLu6bJ8dqpmX5uw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/css.min.js" integrity="sha512-fQhadp2Av4sRhTYd9TEggQW4NrosThwDUXIMLin90uepvmCZG0mRTdPVtHujrXD22qMTtdQlrAEdvWocezI8ow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/1c-light.min.css" integrity="sha512-kM8PiTB2J9j9MJxP4pg5Morv1nvatwpY0xsNsHDpHobti6+sdvObgLPhJ7lOIHYUqQmTAUAE+CaTcQXR47XO2w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Light Mode -->
+    <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <!-- Dark Mode -->
+    <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <h1 id="status">Mike-Agentic</h1>
+            <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+        </div>
+        <div class="main-content">
+            <h1 class="welcome-heading">Mau dibantu apa hari ini tuan?</h1>
+            <div id="messageContainer"></div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="messageInput" autocomplete="off" placeholder="Tanyalah hari ini tuan hitam..." />
+                    <button onclick="sendMessage()" class="send-button" aria-label="Send message" style="margin-left: auto;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="var(--bg-secondary)"><path d="M7.293 4.707 14.586 12l-7.293 7.293 1.414 1.414L17.414 12 8.707 3.293 7.293 4.707z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-action">📝 Summarize text</button>
+                <button class="quick-action">🎁 Surprise me</button>
+                <button class="quick-action">🧠 Brainstorm</button>
+                <button class="quick-action">💭 Get advice</button>
+                <button class="quick-action">⋯ More</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT Clone - SSE Version</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js" integrity="sha512-EBLzUL8XLl+va/zAsmXwS7Z2B1F9HUHkZwyS/VKwh3S7T/U0nF4BaU29EP/ZSf6zgiIxYAnKLu6bJ8dqpmX5uw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/css.min.js" integrity="sha512-fQhadp2Av4sRhTYd9TEggQW4NrosThwDUXIMLin90uepvmCZG0mRTdPVtHujrXD22qMTtdQlrAEdvWocezI8ow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/1c-light.min.css" integrity="sha512-kM8PiTB2J9j9MJxP4pg5Morv1nvatwpY0xsNsHDpHobti6+sdvObgLPhJ7lOIHYUqQmTAUAE+CaTcQXR47XO2w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Light Mode -->
+    <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <!-- Dark Mode -->
+    <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+    <style>
+        :root {
+            --bg-primary: #212121;
+            --bg-secondary: #171717;
+            --text-primary: #e1e1e1;
+            --text-secondary: #ECECEC;
+            --border-color: #565869;
+            --sent-bg: rgba(50,50,50,.85);
+            --received-bg: #212121;
+            --button-bg: #19c37d;
+            --button-hover: #1a8870;
+            --status-connected: #19c37d;
+            --status-disconnected: #c62828;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --text-primary: #000000;
+            --text-secondary: #6b6b6b;
+            --border-color: #e5e5e5;
+            --status-connected: #19c37d;
+            --sent-bg: #19c37d;
+            --received-bg: #f5f5f5;
+            --button-bg: #19c37d;
+            --button-hover: #1a8870;
+            --status-connected: #19c37d;
+            --status-disconnected: #ffcdd2;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #212121;
+            --bg-secondary: #171717;
+            --text-primary: #e1e1e1;
+            --text-secondary: #ECECEC;
+            --border-color: #565869;
+            --sent-bg: rgba(50,50,50,.85);
+            --received-bg: #212121;
+            --button-bg: #19c37d;
+            --button-hover: #1a8870;
+            --status-connected: #19c37d;
+            --status-disconnected: #c62828;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-secondary);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .theme-toggle {
+            padding: 8px 12px;
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: auto;
+        }
+
+        #messageContainer {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px 40px 40px;
+            scroll-behavior: smooth;
+            display: flex;
+            flex-direction: column;
+            scroll-padding-bottom: 20px;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 780px;
+            /* min-width: 70%; */
+        }
+
+        .message {
+            /* max-width: 70%; */
+            margin: 20px 0;
+            padding: 10px 20px;
+            line-height: 1.8;
+            font-size: 16px;
+            border-radius: 8px;
+            position: relative;
+            animation: fadeIn 0.3s ease-in-out;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sent {
+            background-color: var(--sent-bg);
+            color: var(--text-primary);
+            align-self: flex-end;
+        }
+
+        .received {
+            background-color: var(--received-bg);
+            align-self: flex-start;
+        }
+
+        .welcome-heading {
+            text-align: center;
+            font-size: 2.5em;
+            margin: 10vh 0 20px;
+            color: var(--text-primary);
+            font-weight: normal;
+            opacity: 1;
+            transform: translateY(0);
+            transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+        }
+
+        .welcome-heading.hidden {
+            transform: translateY(-50px);
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px;
+            background-color: transparent;
+            position: relative;
+            max-width: 768px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            transition: transform 0.3s ease-in-out;
+            cursor: text;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 8px 8px 8px 16px;
+            background-color: var(--bg-primary);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            min-height: 44px;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--button-bg);
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04), 0 9px 9px 0 rgba(0,0,0,0.01), 0 2px 5px 0 rgba(0,0,0,0.06);
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 0;
+            border: none;
+            background-color: transparent;
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 24px;
+            outline: none;
+            resize: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #messageInput::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .input-container.shifted {
+            position: relative;
+            margin-top: auto;
+            transform: translateY(0);
+            transition: transform 0.5s ease-out;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 20px;
+            max-width: 768px;
+            margin: 0 auto;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .quick-actions.hidden {
+            opacity: 0;
+            visibility: hidden;
+            height: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .quick-action {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .quick-action:hover {
+            background-color: var(--border-color);
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        #status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        .connected {
+            background-color: var(--status-connected);
+            color: white;
+        }
+
+        .disconnected {
+            background-color: var(--status-disconnected);
+            color: white;
+        }
+
+        .message pre {
+            background-color: var(--bg-secondary);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            margin: 12px 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .message pre code {
+            background-color: transparent;
+            padding: 0;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .message code {
+            background-color: rgba(125, 125, 125, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: var(--text-primary);
+        }
+
+        /* Syntax highlighting colors */
+        .message pre .keyword { color: #c678dd; }
+        .message pre .string { color: #98c379; }
+        .message pre .number { color: #d19a66; }
+        .message pre .function { color: #61afef; }
+        .message pre .comment { color: #5c6370; font-style: italic; }
+        .message pre .operator { color: #56b6c2; }
+        .message pre .class { color: #e5c07b; }
+
+        .send-button {
+            border-radius: 100px;
+            padding: 8px;
+            line-height: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div id="status" class="disconnected">Disconnected</div>
+            <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+        </div>
+        <div class="main-content">
+            <h1 class="welcome-heading">What can I help with?</h1>
+            <div id="messageContainer"></div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="messageInput" autocomplete="off" placeholder="Tanyalah hari ini tuan hitam..." />
+                    <button onclick="sendMessage()" class="send-button" aria-label="Send message" style="margin-left: auto;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="var(--bg-secondary)"><path d="M7.293 4.707 14.586 12l-7.293 7.293 1.414 1.414L17.414 12 8.707 3.293 7.293 4.707z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-action">📝 Summarize text</button>
+                <button class="quick-action">🎁 Surprise me</button>
+                <button class="quick-action">🧠 Brainstorm</button>
+                <button class="quick-action">💭 Get advice</button>
+                <button class="quick-action">⋯ More</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messageInput = document.getElementById('messageInput');
+        const statusDiv = document.getElementById('status');
+        const messageContainer = document.getElementById('messageContainer');
+        let currentMessageDiv = null;
+
+        // Theme handling
+        function initializeTheme() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedTheme = localStorage.getItem('theme');
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            document.getElementById("hljs-light").disabled = prefersDark;
+            document.getElementById("hljs-dark").disabled = !prefersDark;
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Update placeholder text based on theme
+            messageInput.placeholder = newTheme === 'light' ? 'Tanyalah hari ini tuan putih...' : 'Tanyalah hari ini tuan hitam...';
+        }
+
+        // Initialize theme based on saved preference or system preference
+        initializeTheme();
+        
+        // Set initial placeholder text based on theme
+        const initialTheme = document.documentElement.getAttribute('data-theme');
+        messageInput.placeholder = initialTheme === 'light' ? 'Tanyalah hari ini tuan putih...' : 'Tanyalah hari ini tuan hitam...';
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                const theme = e.matches ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            }
+        });
+
+        // Configure marked options
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Create and display user message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message sent';
+            messageDiv.innerHTML = message;
+            messageContainer.appendChild(messageDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+            messageInput.value = '';
+
+            // Remove welcome heading and quick actions
+            const welcomeHeading = document.querySelector('.welcome-heading');
+            const quickActions = document.querySelector('.quick-actions');
+            if (welcomeHeading) welcomeHeading.remove();
+            if (quickActions) quickActions.remove();
+            document.querySelector('.input-container').classList.add('shifted');
+
+            try {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'connected';
+
+                // Create response message container
+                currentMessageDiv = document.createElement('div');
+                currentMessageDiv.className = 'message received';
+                messageContainer.appendChild(currentMessageDiv);
+
+                const response = await fetch('http://localhost:8000/chat?stream=true', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ message: message })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let currentContent = "";
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const text = decoder.decode(value);
+                    if (text === '[DONE]') {
+                        currentMessageDiv = null;
+                        currentContent = "";
+                        break;
+                    }
+
+                    const lines = text.split('\n');
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        if (line.trim() === 'data: [DONE]') {
+                            currentMessageDiv = null;
+                            currentContent = "";
+                            break;
+                        }
+
+                        // Extract the JSON data from the line
+                        let jsonData = null;
+                        try {
+                            const jsonStr = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
+                            if (jsonStr === '[DONE]') continue;
+                            jsonData = JSON.parse(jsonStr);
+                        } catch (e) {
+                            // console.log('Skipping invalid JSON:', line);
+                            continue;
+                        }
+
+                        // Process only JSON data that contains the 'v' parameter
+                        if (jsonData && typeof jsonData === 'object' && jsonData.v !== undefined && jsonData.v !== null) {
+                            let messageText = '';
+                            
+                            // Check if the data is a message object with content
+                            if (jsonData.message && jsonData.message.content && jsonData.message.content.parts) {
+                                // messageText = jsonData.message.content.parts.join('');
+                            }
+                            // Check if it's a direct text value in 'v'
+                            else if (typeof jsonData.v === 'string') {
+                                messageText = jsonData.v;
+                            }
+                            // Handle object with emoji property
+                            else if (typeof jsonData.v === 'object' && jsonData.v.emoji) {
+                                messageText = jsonData.v.emoji;
+                            }
+                            
+                            if (messageText) {
+                                currentContent = currentContent + messageText;
+                                // const currentContent = currentMessageDiv.innerHTML;
+                                // Remove any existing markdown parsing
+                                // const plainContent = currentContent.replace(/<[^>]*>/g, '');
+                                // const plainContent = currentContent
+                                
+                                // // Ensure proper spacing between text fragments
+                                // messageText = messageText.trim();
+                                
+                                // let newContent;
+                                // if (plainContent) {
+                                //     const needsSpace = !plainContent.endsWith('\n') && 
+                                //                       !plainContent.endsWith(' ') && 
+                                //                       !plainContent.endsWith('.') && 
+                                //                       !plainContent.endsWith('!') && 
+                                //                       !plainContent.endsWith('?') && 
+                                //                       !messageText.startsWith('.') && 
+                                //                       !messageText.startsWith('!') && 
+                                //                       !messageText.startsWith('?') && 
+                                //                       !messageText.startsWith(',');
+                                    
+                                //     newContent = plainContent + (needsSpace ? ' ' : '') + messageText;
+                                // } else {
+                                //     newContent = messageText;
+                                // }
+
+                                currentMessageDiv.innerHTML = marked.parse(currentContent);
+                                if (currentContent.includes("```")) {
+                                    setTimeout(() => {
+                                        const codeBlocks = currentMessageDiv.querySelectorAll("pre code");
+                                        codeBlocks.forEach((block) => {
+                                            hljs.highlightElement(block);
+                                        });
+                                    }, 10);
+                                }
+
+
+                                // try {
+                                //     hljs.highlightElement(currentMessageDiv.querySelector("code"));
+                                // } catch (e) {
+                                //     continue;
+                                // }
+                                messageContainer.scrollTop = messageContainer.scrollHeight;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'disconnected';
+                
+                if (currentMessageDiv) {
+                    currentMessageDiv.innerHTML += '\n\nError: Failed to connect to the server.';
+                }
+            }
+        }
+
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+
+</html>
