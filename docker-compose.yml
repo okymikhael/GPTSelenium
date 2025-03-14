@@ -35,8 +35,6 @@ services:
       - "8080:8080"
     networks:
       - gptselenium-network
-    depends_on:
-      - app
 
 networks:
   gptselenium-network:

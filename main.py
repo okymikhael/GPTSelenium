@@ -128,11 +128,12 @@ def start_browser():
     start_time = time.time()
     chrome_options = Options()
 
-    # Base options
-    # chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--start-maximized")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    # Base options for Docker environment
+    # chrome_options.add_argument("--headless=new")  # Use new headless mode
+    chrome_options.add_argument("--no-sandbox")  # Required for Docker
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
+    chrome_options.add_argument("--window-size=1920,1080")  # Set window size instead of maximize
 
     # Proxy and certificate settings
     proxy_host = os.environ.get('PROXY_HOST', 'localhost')
@@ -153,9 +154,10 @@ def start_browser():
     chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
     chrome_options.set_capability("acceptInsecureCerts", True)
 
-    # Use undetected chromedriver
+    # Use undetected chromedriver with proper Docker configuration
     service = Service("./chromedriver")
-    driver = uc.Chrome(service=service, options=chrome_options)
+    # Set specific Chrome version to avoid version mismatch issues
+    driver = uc.Chrome(service=service, options=chrome_options, version_main=134)
 
     # Enable DevTools (CDP)
     driver.execute_cdp_cmd("Network.enable", {})
