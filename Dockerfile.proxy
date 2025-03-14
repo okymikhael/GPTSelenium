@@ -1,0 +1,27 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install mitmproxy
+COPY requirements.txt .
+RUN pip install --no-cache-dir mitmproxy websockets redis
+
+# Copy proxy script
+COPY proxy_gateway.py .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV APP_HOST=app
+ENV APP_PORT=8000
+ENV REDIS_HOST=redis
+
+# Create directory for logs
+RUN mkdir -p /app/network
+
+# Run mitmproxy with the script
+CMD ["mitmdump", "-s", "proxy_gateway.py", "--listen-host", "0.0.0.0", "--listen-port", "8080", "--set", "block_global=false", "--set", "ssl_insecure=true"]

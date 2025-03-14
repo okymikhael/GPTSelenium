@@ -1,13 +1,16 @@
 import mitmproxy.http
 import json
 import redis
+import os
 from mitmproxy import ctx
 from collections.abc import Iterable
 import asyncio
 import websockets
 
 # Initialize WebSocket client
-ws_url = "ws://localhost:8000/ws"
+app_host = os.environ.get('APP_HOST', 'localhost')
+app_port = os.environ.get('APP_PORT', '8000')
+ws_url = f"ws://{app_host}:{app_port}/ws"
 ws_client = None
 ws_lock = asyncio.Lock()  # Add lock for thread-safe WebSocket operations
 
@@ -15,7 +18,8 @@ LOG_FILE = "network/dump.txt"  # Ensure this directory exists.
 TARGET_URL_PATH = "https://chatgpt.com/backend-api/conversation"
 
 # Initialize Redis client
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_client = redis.Redis(host=redis_host, port=6379, db=0)
 
 class ProxyLogger:
     def __init__(self):

@@ -3,6 +3,7 @@ import uuid
 import uvicorn
 import redis
 import asyncio
+import os
 import undetected_chromedriver as uc
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -33,7 +34,8 @@ app.add_middleware(
 driver = None
 
 # Initialize Redis client
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_client = redis.Redis(host=redis_host, port=6379, db=0)
 
 # Global variable to store chat interactions (for Redis/memory caching)
 chat_interactions = {}
@@ -133,9 +135,11 @@ def start_browser():
     chrome_options.add_argument("--disable-dev-shm-usage")
 
     # Proxy and certificate settings
+    proxy_host = os.environ.get('PROXY_HOST', 'localhost')
+    proxy_port = os.environ.get('PROXY_PORT', '8080')
     chrome_options.add_argument("--proxy-bypass-list=<-loopback>")
     chrome_options.add_argument("--ignore-certificate-errors")
-    chrome_options.add_argument("--proxy-server=localhost:8080")
+    chrome_options.add_argument(f"--proxy-server={proxy_host}:{proxy_port}")
 
     # Additional flags to minimize CPU usage
     chrome_options.add_argument("--disable-gpu")

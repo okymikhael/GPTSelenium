@@ -9,7 +9,36 @@ A sophisticated web application that functions as a proxy gateway for intercepti
 - RESTful API endpoints for programmatic access and integration
 - Advanced browser automation via Selenium WebDriver
 
-## Deployment Instructions
+## Docker Deployment Instructions
+
+### Prerequisites
+
+**IMPORTANT:** Before running the application, you must add your ChatGPT cookies to the project:
+
+1. Create a `cookies.txt` file in the project root directory
+2. Format your cookies in Netscape/Mozilla format with tab-separated values:
+   ```
+   domain\tHTTP-only-flag\tpath\tsecure-flag\texpiration\tname\tvalue
+   ```
+   Example:
+   ```
+   .openai.com\tTRUE\t/\tTRUE\t1718486400\t_puid\tyour-cookie-value
+   ```
+
+3. Run the application with Docker Compose:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Access the dashboard at http://localhost:8000
+
+### Docker Compose Services
+
+- **app**: Main FastAPI application with Selenium browser automation
+- **redis**: Cache for chat interactions
+- **proxy**: mitmproxy service for intercepting ChatGPT traffic
+
+## Manual Deployment Instructions
 
 1. Install required dependencies:
    ```bash
