@@ -46,6 +46,37 @@ chat_interactions = {}
 #   - mode "stream": { "queue": asyncio.Queue() }
 pending_ws_data: Dict[str, Dict[str, Any]] = {}
 
+# Function to check for timeout and refresh browser if needed
+async def check_timeout(chat_id: str, mode: str):
+    await asyncio.sleep(10)  # Wait for 10 seconds
+    if chat_id in pending_ws_data:
+        current_time = time.time()
+        if current_time - pending_ws_data[chat_id]["timestamp"] >= 10:
+            # Refresh the browser
+            global driver
+            try:
+                driver.refresh()
+                print(f"Browser refreshed due to timeout for chat_id: {chat_id}")
+            except Exception as e:
+                print(f"Error refreshing browser: {str(e)}")
+            
+            # Clean up the pending data
+            if chat_id in pending_ws_data:
+                if mode == "stream":
+                    queue = pending_ws_data[chat_id]["queue"]
+                    # Send error message to the client before ending the stream
+                    await queue.put("Error: GPT not responding")
+                    await queue.put(None)  # Signal end of stream
+                elif mode == "complete" and not pending_ws_data[chat_id]["future"].done():
+                    pending_ws_data[chat_id]["future"].set_exception(
+                        HTTPException(status_code=400, detail="GPT not responding")
+                    )
+                del pending_ws_data[chat_id]
+            
+            # Return instead of raising exception in the async task
+            # This prevents the unhandled exception in the background task
+            return
+
 # Background task to clean up expired chat interactions
 async def cleanup_expired_chats():
     while True:
@@ -263,19 +294,45 @@ async def chat_endpoint(request: ChatRequest, stream: bool = Query(False)):
     # Depending on the mode, set up pending_ws_data.
     if stream:
         # Streaming mode: Create a queue for this chat_id.
-        pending_ws_data[chat_id] = {"mode": "stream", "queue": asyncio.Queue()}
+        pending_ws_data[chat_id] = {"mode": "stream", "queue": asyncio.Queue(), "timestamp": time.time(), "has_received_message": False}
         
         # Optionally, you could kick off additional async tasks here if needed.
         async def event_generator():
-            queue = pending_ws_data[chat_id]["queue"]
-            while True:
-                chunk = await queue.get()
-                if chunk is None:
-                    # End-of-stream indicator.
-                    break
-                yield f"data: {chunk}\n\n"
-            # Final event (optional)
-            yield "data: [DONE]\n\n"
+            try:
+                queue = pending_ws_data[chat_id]["queue"]
+                # Start timeout checker only if no message has been received yet
+                timeout_task = None
+                if not pending_ws_data[chat_id].get("has_received_message", False):
+                    timeout_task = asyncio.create_task(check_timeout(chat_id, "stream"))
+                    # Store the timeout task reference so it can be canceled when messages are received
+                    pending_ws_data[chat_id]["timeout_task"] = timeout_task
+                
+                while True:
+                    chunk = await queue.get()
+                    # Mark that we've received a message
+                    if chat_id in pending_ws_data:
+                        pending_ws_data[chat_id]["has_received_message"] = True
+                        # Cancel timeout task if it exists since we've received a message
+                        timeout_task = pending_ws_data[chat_id].get("timeout_task")
+                        if timeout_task and not timeout_task.done():
+                            timeout_task.cancel()
+                            
+                    if chunk is None:
+                        # End-of-stream indicator.
+                        break
+                    # Check if the chunk is an error message
+                    if isinstance(chunk, str) and chunk.startswith("Error:"):
+                        # Send the error message to the client
+                        yield f"data: {chunk}\n\n"
+                        # Break the loop to end the stream after sending the error
+                        break
+                    yield f"data: {chunk}\n\n"
+                # Final event (optional)
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                print(f"Error in event generator: {str(e)}")
+                yield f"data: Error: {str(e)}\n\n"
+                yield "data: [DONE]\n\n"
         
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     
@@ -283,11 +340,22 @@ async def chat_endpoint(request: ChatRequest, stream: bool = Query(False)):
         # Complete mode: Create a future and a list to accumulate chunks.
         loop = asyncio.get_event_loop()
         future = loop.create_future()
-        pending_ws_data[chat_id] = {"mode": "complete", "future": future, "chunks": []}
+        pending_ws_data[chat_id] = {"mode": "complete", "future": future, "chunks": [], "timestamp": time.time(), "has_received_message": False}
         
-        # Wait until the WebSocket signals completion with [DONE].
-        complete_message = await future
-        return {"chat_id": chat_id, "data": complete_message}
+        # Start timeout checker only if no message has been received yet
+        timeout_task = None
+        if not pending_ws_data[chat_id].get("has_received_message", False):
+            timeout_task = asyncio.create_task(check_timeout(chat_id, "complete"))
+            # Store the timeout task reference so it can be canceled when messages are received
+            pending_ws_data[chat_id]["timeout_task"] = timeout_task
+        
+        try:
+            # Wait until the WebSocket signals completion with [DONE].
+            complete_message = await future
+            return {"chat_id": chat_id, "data": complete_message}
+        except HTTPException as e:
+            # Re-raise the exception
+            raise e
 
 # WebSocket endpoint to receive chunked data.
 # Expected messages: "chat_id:data: <chunk>"
@@ -307,6 +375,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     if chat_id in pending_ws_data:
                         record = pending_ws_data[chat_id]
                         if record["mode"] == "complete":
+                            # Mark that we've received a message
+                            record["has_received_message"] = True
+                            # Cancel timeout task if it exists since we've received a message
+                            timeout_task = record.get("timeout_task")
+                            if timeout_task and not timeout_task.done():
+                                timeout_task.cancel()
+                                
                             if "[DONE]" in chunk:
                                 complete_message = "".join(record["chunks"])
                                 if not record["future"].done():
@@ -315,6 +390,13 @@ async def websocket_endpoint(websocket: WebSocket):
                             else:
                                 record["chunks"].append(chunk)
                         elif record["mode"] == "stream":
+                            # Mark that we've received a message
+                            record["has_received_message"] = True
+                            # Cancel timeout task if it exists since we've received a message
+                            timeout_task = record.get("timeout_task")
+                            if timeout_task and not timeout_task.done():
+                                timeout_task.cancel()
+                                
                             if "[DONE]" in chunk:
                                 await record["queue"].put(None)
                                 del pending_ws_data[chat_id]
